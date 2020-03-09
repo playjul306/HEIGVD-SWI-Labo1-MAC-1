@@ -1,3 +1,7 @@
+> Auteurs : Julien Benoit & Volkan Sütcü
+>
+> Date : 09.03.2020
+
 [Livrables](#livrables)
 
 [Échéance](#échéance)
@@ -88,12 +92,22 @@ Le corps de la trame (Frame body) contient, entre autres, un champ de deux octet
 | 39 | Requested from peer QSTA due to timeout                                                                                                                                              |
 | 40 | Peer QSTA does not support the requested cipher suite                                                                                                                                              |
 | 46-65535 | Reserved                                                                                                                                              |
- 
+
 a) Utiliser la fonction de déauthentification de la suite aircrack, capturer les échanges et identifier le Reason code et son interpretation.
 
 __Question__ : quel code est utilisé par aircrack pour déauthentifier un client 802.11. Quelle est son interpretation ?
 
+![aircrackCode](images/aircrackCode.png)
+
+Nous avons le reason code 7 : Class 3 frame received from nonassociated station
+
 __Question__ : A l'aide d'un filtre d'affichage, essayer de trouver d'autres trames de déauthentification dans votre capture. Avez-vous en trouvé d'autres ? Si oui, quel code contient-elle et quelle est son interpretation ?
+
+En utilisant le filtre ci-dessous, nous avons trouvé d'autres trames de déauthentification avec un reason code tel que le 6 : Class 2 frame received from nonauthenticated station
+
+```
+wlan.fixed.reason_code != 0x0007
+```
 
 b) Développer un script en Python/Scapy capable de générer et envoyer des trames de déauthentification. Le script donne le choix entre des Reason codes différents (liste ci-après) et doit pouvoir déduire si le message doit être envoyé à la STA ou à l'AP :
 * 1 - Unspecified
@@ -103,13 +117,43 @@ b) Développer un script en Python/Scapy capable de générer et envoyer des tra
 
 __Question__ : quels codes/raisons justifient l'envoie de la trame à la STA cible et pourquoi ?
 
+La 1 car elle ne spécifie pas la raison exacte de l'envoi à la STA, la 4 qui indique que la station est inactif depuis un certain temps et doit être déconnecté et la 5 car l'AP est surchargé et il est incapable de gérer les tentatives de connexion supplémentaires
+
 __Question__ : quels codes/raisons justifient l'envoie de la trame à l'AP et pourquoi ?
+
+La 1 car elle ne spécifie pas la raison exacte de l'envoi à l'AP et la 8 car elle indique à l'AP que la station quitte son BSS
 
 __Question__ : Comment essayer de déauthentifier toutes les STA ?
 
+En utilisant le mac adresse client suivant qui va permettre de cibler absolument toutes les cibles connectés à l'AP : FF:FF:FF:FF:FF:FF
+
 __Question__ : Quelle est la différence entre le code 3 et le code 8 de la liste ?
 
+Avec la reason code 3, le client est désauthentifié et quitte donc l'ESS. En revanche, pour le reason code 8, le client va être désassocié du BSS/réseau managé par un AP.
+
 __Question__ : Expliquer l'effet de cette attaque sur la cible
+
+Cette attaque provoque la déconnexion d'hôte ciblé. En effet, une fois l'attaque exécuté, la cible se voit déconnecté du point d'accès auquel elle était connecté et donc, elle sera incapable de contacter le réseau fourni par l'AP pour surfer sur le net ou accéder aux ressources proposées et devra, par conséquent, se reconnecter. 
+
+##### Fonctionnement du Script :
+
+Pour lancer le script il faut lancer la commande comme l’exemple qui suit :
+
+```bash
+sudo python3 script1_deauth.py -n 100 -a B2:AF:4E:12:C0:13 -c ac:bc:32:99:6e:67 -i wlan0mon -r 1
+```
+
+Voici à quoi correspondent les différents paramètres :
+
+![Script1_3](images/Script1_3.PNG)
+
+Nous pouvons voir après l’exécution du script qu’une déauthentification a bien été envoyée comme le démontre la capture wireshark ci dessous :
+
+![Script1](images/Script1.PNG)
+
+Ainsi que sur la capture ci-dessous qui montre que les ping ne passe plus :
+
+![Script1_2](images/Script1_2.PNG)
 
 ### 2. Fake channel evil tween attack
 a)	Développer un script en Python/Scapy avec les fonctionnalités suivantes :
@@ -121,10 +165,42 @@ a)	Développer un script en Python/Scapy avec les fonctionnalités suivantes :
 
 __Question__ : Expliquer l'effet de cette attaque sur la cible
 
+Lorsque la cible essaie de s’authentifier auprès de l’AP qui a été attaqué, la cible tentera de se connecter à notre « faux » AP qui nous permet de récupérer ses informations de connexion.
+
+##### Fonctionnement du Script :
+
+Pour lancer le script, il suffit simplement d’entrer la commande ci-dessous et ensuite de définir l’interface puis de choisir le SSID à attaquer :
+
+```bash
+sudo python3 script2_fakeChannel.py
+```
+
+Voici un exemple d’affichage du script :
+
+![script2_Exemple](images/script2_Exemple.PNG)
+
+Nous pouvons voir dans les images ci-dessous que la channel du réseau attaqué a bien été changé dans la nouvelle trame forgée par le script.
+
+![script2_OldChannel](images/script2_OldChannel.PNG)
+
+![script2_NewChannel](images/script2_NewChannel.PNG)
+
 
 ### 3. SSID flood attack
 
 Développer un script en Python/Scapy capable d'inonder la salle avec des SSID dont le nom correspond à une liste contenue dans un fichier text fournit par un utilisateur. Si l'utilisateur ne possède pas une liste, il peut spécifier le nombre d'AP à générer. Dans ce cas, les SSID seront générés de manière aléatoire.
+
+##### Fonctionnement du Script :
+
+Lorsqu'aucun fichier texte n'est fourni au script, ce dernier va générer automatiquement 5 access points avec des adresses mac aléatoires en tant que thread. Nous pouvons donc voir ci-dessous les noms de SSID qui ont été attribués et sur la seconde capture, ces SSID qui sont proposés.
+
+![script3_1](images/script3_1.png)
+
+![script3_2](images/script3_2.png)
+
+Nous avons fourni ci-dessous 4 noms de SSID qui ont été générés comme on peut le constater sur l'affichage en bas à droite.  
+
+![script3_3](images/script3_3.png)
 
 ## Livrables
 
